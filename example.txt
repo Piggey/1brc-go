@@ -1,0 +1,11 @@
+Muscat;24.6
+Muscat;22.6
+Kuwait City;2.9
+Colombo;16.1
+Albuquerque;12.1
+Cairo;17.9
+Bucharest;12.2
+Lubumbashi;27.1
+Damascus;13.0
+Yaoundé;29.6
+Dhaka;32.6
