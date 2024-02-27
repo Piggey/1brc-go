@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -11,10 +12,13 @@ import (
 )
 
 const (
-	lineSeparator   = ";"
-	blocksize       = 4096
-	exampleDataFile = "example.txt"
-	dataFile        = "measurements.txt"
+	lineSeparator      = ";"
+	chunksize          = 128 * 1024 * 1024
+	exampleDataFile    = "example.txt"
+	dataFile           = "measurements.txt"
+	stationsFile       = "stations.txt"
+	minimumTemperature = -100
+	maximumTemperature = 100
 )
 
 type stationData struct {
@@ -31,20 +35,16 @@ func main() {
 	}
 	defer f.Close()
 
-	minMap := map[string]float64{}
-	maxMap := map[string]float64{}
+	minMap, maxMap := loadCachedStations(stationsFile, minimumTemperature, maximumTemperature)
 	sumMap := map[string]float64{}
 	cntMap := map[string]float64{}
 
-	buf := make([]byte, blocksize)
+	buf := make([]byte, chunksize)
 	line := make([]byte, 0, 256)
 	for {
 		read, err := f.Read(buf)
 		if read == 0 && err == io.EOF {
 			break
-		}
-		if err != nil {
-			log.Panic(err)
 		}
 
 		for i := 0; i < read; i++ {
@@ -57,30 +57,12 @@ func main() {
 			stationName := temp[0]
 			temperature, _ := strconv.ParseFloat(temp[1], 64)
 
-			if min, ok := minMap[stationName]; !ok {
-				minMap[stationName] = temperature
-			} else {
-				if temperature < min {
-					minMap[stationName] = temperature
-				}
-			}
-
-			if max, ok := maxMap[stationName]; !ok {
-				maxMap[stationName] = temperature
-			} else {
-				if temperature > max {
-					maxMap[stationName] = temperature
-				}
-			}
-
+			minMap[stationName] = min(temperature, minMap[stationName])
+			maxMap[stationName] = max(temperature, maxMap[stationName])
 			sumMap[stationName] += temperature
 			cntMap[stationName] += 1
 			line = line[:0]
 		}
-	}
-
-	for station := range cntMap {
-		fmt.Println(station)
 	}
 
 	stationsData := convertToArray(minMap, maxMap, sumMap, cntMap)
@@ -93,6 +75,26 @@ func main() {
 
 	output := generateOutput(stationsData)
 	fmt.Println(output)
+}
+
+func loadCachedStations(stationsFile string, minimumTemperature, maximumTemperature float64) (minMap, maxMap map[string]float64) {
+	minMap = map[string]float64{}
+	maxMap = map[string]float64{}
+
+	f, err := os.Open(stationsFile)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	scn := bufio.NewScanner(f)
+	for scn.Scan() {
+		station := scn.Text()
+
+		minMap[station] = maximumTemperature
+		maxMap[station] = minimumTemperature
+	}
+
+	return minMap, maxMap
 }
 
 func generateOutput(stationsData []stationData) string {

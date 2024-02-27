@@ -17,3 +17,8 @@
 ```bash
 ./1brc-go  227,19s user 5,11s system 101% cpu 3:48,61 total
 ```
+
+- 3-cache-stations
+```bash
+./1brc-go  195,46s user 2,65s system 97% cpu 3:22,21 total
+```
