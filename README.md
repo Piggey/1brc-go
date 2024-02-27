@@ -12,3 +12,8 @@
 ```bash
 ./1brc-go  266,48s user 5,64s system 101% cpu 4:28,38 total
 ```
+
+- 2-read-chunks
+```bash
+./1brc-go  227,19s user 5,11s system 101% cpu 3:48,61 total
+```

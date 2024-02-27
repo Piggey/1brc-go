@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"slices"
@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	lineSeparator      = ";"
-	minimumTemperature = -100
-	maximumTemperature = 100
+	lineSeparator   = ";"
+	blocksize       = 4096
+	exampleDataFile = "example.txt"
+	dataFile        = "measurements.txt"
 )
 
 type stationData struct {
@@ -24,47 +25,65 @@ type stationData struct {
 }
 
 func main() {
-	f, err := os.Open("measurements.txt")
+	f, err := os.Open(dataFile)
 	if err != nil {
 		log.Panic(err)
 	}
 	defer f.Close()
-
-	filescanner := bufio.NewScanner(f)
-	filescanner.Split(bufio.ScanLines)
 
 	minMap := map[string]float64{}
 	maxMap := map[string]float64{}
 	sumMap := map[string]float64{}
 	cntMap := map[string]float64{}
 
-	for filescanner.Scan() {
-		line := strings.Split(filescanner.Text(), lineSeparator)
-		stationName := line[0]
-		temperature, _ := strconv.ParseFloat(line[1], 64)
-
-		if _, ok := minMap[stationName]; !ok {
-			minMap[stationName] = maximumTemperature
+	buf := make([]byte, blocksize)
+	line := make([]byte, 0, 256)
+	for {
+		read, err := f.Read(buf)
+		if read == 0 && err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Panic(err)
 		}
 
-		if _, ok := maxMap[stationName]; !ok {
-			maxMap[stationName] = minimumTemperature
-		}
+		for i := 0; i < read; i++ {
+			if buf[i] != '\n' {
+				line = append(line, buf[i])
+				continue
+			}
 
-		if temperature < minMap[stationName] {
-			minMap[stationName] = temperature
-		}
+			temp := strings.Split(string(line), lineSeparator)
+			stationName := temp[0]
+			temperature, _ := strconv.ParseFloat(temp[1], 64)
 
-		if temperature > maxMap[stationName] {
-			maxMap[stationName] = temperature
-		}
+			if min, ok := minMap[stationName]; !ok {
+				minMap[stationName] = temperature
+			} else {
+				if temperature < min {
+					minMap[stationName] = temperature
+				}
+			}
 
-		sumMap[stationName] += temperature
-		cntMap[stationName] += 1
+			if max, ok := maxMap[stationName]; !ok {
+				maxMap[stationName] = temperature
+			} else {
+				if temperature > max {
+					maxMap[stationName] = temperature
+				}
+			}
+
+			sumMap[stationName] += temperature
+			cntMap[stationName] += 1
+			line = line[:0]
+		}
+	}
+
+	for station := range cntMap {
+		fmt.Println(station)
 	}
 
 	stationsData := convertToArray(minMap, maxMap, sumMap, cntMap)
-
 	slices.SortFunc(stationsData, func(a, b stationData) int {
 		if a.name < b.name {
 			return -1
@@ -72,7 +91,6 @@ func main() {
 		return 1
 	})
 
-	// print output
 	output := generateOutput(stationsData)
 	fmt.Println(output)
 }
