@@ -19,14 +19,24 @@ const (
 	stationsFile       = "stations.txt"
 	minimumTemperature = -100
 	maximumTemperature = 100
+	stationsNumber     = 413
 )
 
-type stationData struct {
-	name string
-	min  float64
-	mean float64
-	max  float64
-}
+type (
+	stationMapData struct {
+		min float64
+		max float64
+		sum float64
+		cnt int
+	}
+
+	stationSliceData struct {
+		name string
+		min  float64
+		max  float64
+		mean float64
+	}
+)
 
 func main() {
 	f, err := os.Open(dataFile)
@@ -35,9 +45,14 @@ func main() {
 	}
 	defer f.Close()
 
-	minMap, maxMap := loadCachedStations(stationsFile, minimumTemperature, maximumTemperature)
-	sumMap := map[string]float64{}
-	cntMap := map[string]float64{}
+	info, err := f.Stat()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	fmt.Printf("info.Size(): %v\n", info.Size())
+
+	resultMap := initResultMap(stationsFile, stationsNumber, minimumTemperature, maximumTemperature)
 
 	buf := make([]byte, chunksize)
 	line := make([]byte, 0, 256)
@@ -57,16 +72,19 @@ func main() {
 			stationName := temp[0]
 			temperature, _ := strconv.ParseFloat(temp[1], 64)
 
-			minMap[stationName] = min(temperature, minMap[stationName])
-			maxMap[stationName] = max(temperature, maxMap[stationName])
-			sumMap[stationName] += temperature
-			cntMap[stationName] += 1
+			stationData := resultMap[stationName]
+			resultMap[stationName] = stationMapData{
+				min: min(temperature, stationData.min),
+				max: max(temperature, stationData.max),
+				sum: stationData.sum + temperature,
+				cnt: stationData.cnt + 1,
+			}
 			line = line[:0]
 		}
 	}
 
-	stationsData := convertToArray(minMap, maxMap, sumMap, cntMap)
-	slices.SortFunc(stationsData, func(a, b stationData) int {
+	stationsData := convertToArray(resultMap)
+	slices.SortFunc(stationsData, func(a, b stationSliceData) int {
 		if a.name < b.name {
 			return -1
 		}
@@ -77,9 +95,8 @@ func main() {
 	fmt.Println(output)
 }
 
-func loadCachedStations(stationsFile string, minimumTemperature, maximumTemperature float64) (minMap, maxMap map[string]float64) {
-	minMap = map[string]float64{}
-	maxMap = map[string]float64{}
+func initResultMap(stationsFile string, stationsNumber int, minimumTemperature, maximumTemperature float64) map[string]stationMapData {
+	out := make(map[string]stationMapData, stationsNumber)
 
 	f, err := os.Open(stationsFile)
 	if err != nil {
@@ -90,14 +107,16 @@ func loadCachedStations(stationsFile string, minimumTemperature, maximumTemperat
 	for scn.Scan() {
 		station := scn.Text()
 
-		minMap[station] = maximumTemperature
-		maxMap[station] = minimumTemperature
+		out[station] = stationMapData{
+			min: maximumTemperature,
+			max: minimumTemperature,
+		}
 	}
 
-	return minMap, maxMap
+	return out
 }
 
-func generateOutput(stationsData []stationData) string {
+func generateOutput(stationsData []stationSliceData) string {
 	output := "{"
 	for _, s := range stationsData {
 		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", s.name, s.min, s.mean, s.max)
@@ -108,16 +127,15 @@ func generateOutput(stationsData []stationData) string {
 	return output
 }
 
-func convertToArray(minMap, maxMap, sumMap, cntMap map[string]float64) []stationData {
-	out := make([]stationData, 0, len(minMap))
+func convertToArray(m map[string]stationMapData) []stationSliceData {
+	out := make([]stationSliceData, 0, len(m))
 
-	for station := range minMap {
-		mean := sumMap[station] / cntMap[station]
-		out = append(out, stationData{
-			name: station,
-			min:  minMap[station],
-			mean: mean,
-			max:  maxMap[station],
+	for stationName, data := range m {
+		out = append(out, stationSliceData{
+			name: stationName,
+			min:  data.min,
+			mean: data.sum / float64(data.cnt),
+			max:  data.max,
 		})
 	}
 

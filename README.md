@@ -22,3 +22,8 @@
 ```bash
 ./1brc-go  195,46s user 2,65s system 97% cpu 3:22,21 total
 ```
+
+- 4-one-map
+```bash
+./1brc-go  159,93s user 2,96s system 95% cpu 2:50,85 total
+```
