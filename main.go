@@ -46,7 +46,9 @@ func main() {
 	var wg sync.WaitGroup
 	for i := 0; i < cpuCores; i++ {
 		wg.Add(1)
-		go workerThread(i, dataCh, resultCh, &wg)
+		go func() {
+			workerThread(dataCh, resultCh, &wg)
+		}()
 	}
 	wg.Wait()
 	close(resultCh)

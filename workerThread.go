@@ -16,7 +16,7 @@ const (
 	uniqueStationsNum  = 413
 )
 
-func workerThread(threadId int, dataCh <-chan []byte, resultCh chan<- map[string]stationMapData, wg *sync.WaitGroup) {
+func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationMapData, wg *sync.WaitGroup) {
 	defer wg.Done()
 	resultMap := initResultMap(stationsFile, uniqueStationsNum, minimumTemperature, maximumTemperature)
 
