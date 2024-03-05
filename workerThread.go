@@ -1,11 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"log"
-	"os"
-	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -14,11 +9,11 @@ const (
 	minimumTemperature = -100
 	maximumTemperature = 100
 	uniqueStationsNum  = 413
+	lineSeparator      = ';'
 )
 
-func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationMapData, wg *sync.WaitGroup) {
+func workerThread(dataCh <-chan []byte, resultMap map[string]stationMapData, resultCh chan<- map[string]stationMapData, wg *sync.WaitGroup) {
 	defer wg.Done()
-	resultMap := initResultMap(stationsFile, uniqueStationsNum, minimumTemperature, maximumTemperature)
 
 	for data := range dataCh {
 		linestart := 0
@@ -27,10 +22,9 @@ func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationMapDat
 				continue
 			}
 
-			temp := strings.Split(string(data[linestart:i]), lineSeparator)
+			stationName, temperatureStr := splitLine(string(data[linestart:i]), lineSeparator)
 			linestart = i + 1
-			stationName := temp[0]
-			temperature, _ := strconv.ParseFloat(temp[1], 64)
+			temperature := fastParseFloat(temperatureStr)
 
 			stationData := resultMap[stationName]
 			resultMap[stationName] = stationMapData{
@@ -43,25 +37,4 @@ func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationMapDat
 	}
 
 	resultCh <- resultMap
-}
-
-func initResultMap(stationsFile string, stationsNumber int, minimumTemperature, maximumTemperature float64) map[string]stationMapData {
-	out := make(map[string]stationMapData, stationsNumber)
-
-	f, err := os.Open(stationsFile)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	scn := bufio.NewScanner(f)
-	for scn.Scan() {
-		station := scn.Text()
-
-		out[station] = stationMapData{
-			min: maximumTemperature,
-			max: minimumTemperature,
-		}
-	}
-
-	return out
 }
