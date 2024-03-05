@@ -32,3 +32,8 @@
 ```bash
 ./1brc-go  210,88s user 7,24s system 879% cpu 24,794 total
 ```
+
+- 6-fast-float-parse
+```bash
+./1brc-go  96,24s user 5,51s system 504% cpu 20,178 total
+```
