@@ -40,21 +40,27 @@ func main() {
 	}
 	defer f.Close()
 
+	resultMap := initResultMap(stationsFile, uniqueStationsNum, minimumTemperature, maximumTemperature)
+
 	dataCh := readerThread(f, cpuCores)
 	resultCh := make(chan map[string]stationMapData, cpuCores)
 
 	var wg sync.WaitGroup
 	for i := 0; i < cpuCores; i++ {
+		resultMapCopy := make(map[string]stationMapData)
+		for stationName, data := range resultMap {
+			resultMapCopy[stationName] = data
+		}
+
 		wg.Add(1)
 		go func() {
-			workerThread(dataCh, resultCh, &wg)
+			workerThread(dataCh, resultMapCopy, resultCh, &wg)
 		}()
 	}
 	wg.Wait()
 	close(resultCh)
 
 	// collect and reduce data
-	resultMap := make(map[string]stationMapData)
 	for result := range resultCh {
 		for stationName, data := range result {
 			stationData := resultMap[stationName]
