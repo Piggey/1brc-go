@@ -40,7 +40,7 @@ func main() {
 	}
 	defer f.Close()
 
-	dataCh := readerThread(f)
+	dataCh := readerThread(f, cpuCores)
 	resultCh := make(chan map[string]stationMapData, cpuCores)
 
 	var wg sync.WaitGroup

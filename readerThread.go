@@ -10,8 +10,8 @@ const (
 	chunksize     = 128 * 1024 * 1024
 )
 
-func readerThread(f *os.File) <-chan []byte {
-	ch := make(chan []byte)
+func readerThread(f *os.File, cores int) <-chan []byte {
+	ch := make(chan []byte, cores)
 
 	go func() {
 		defer close(ch)
