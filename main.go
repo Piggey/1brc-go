@@ -1,25 +1,18 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"runtime"
 	"slices"
-	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
-	lineSeparator      = ";"
-	chunksize          = 128 * 1024 * 1024
-	exampleDataFile    = "example.txt"
-	dataFile           = "measurements.txt"
-	stationsFile       = "stations.txt"
-	minimumTemperature = -100
-	maximumTemperature = 100
-	stationsNumber     = 413
+	exampleDataFile = "example.txt"
+	dataFile        = "measurements.txt"
 )
 
 type (
@@ -39,50 +32,44 @@ type (
 )
 
 func main() {
+	cpuCores := runtime.NumCPU()
+	log.Printf("cpuCores: %v\n", cpuCores)
+
 	f, err := os.Open(dataFile)
 	if err != nil {
 		log.Panic(err)
 	}
 	defer f.Close()
 
-	info, err := f.Stat()
-	if err != nil {
-		log.Panic(err)
+	dataCh := readerThread(f)
+	resultCh := make(chan map[string]stationMapData, cpuCores)
+
+	log.Println("tworzenie worker threadow")
+	var wg sync.WaitGroup
+	for i := 0; i < cpuCores; i++ {
+		wg.Add(1)
+		go workerThread(i, dataCh, resultCh, &wg)
 	}
+	wg.Wait()
+	close(resultCh)
 
-	fmt.Printf("info.Size(): %v\n", info.Size())
-
-	resultMap := initResultMap(stationsFile, stationsNumber, minimumTemperature, maximumTemperature)
-
-	buf := make([]byte, chunksize)
-	line := make([]byte, 0, 256)
-	for {
-		read, err := f.Read(buf)
-		if read == 0 && err == io.EOF {
-			break
-		}
-
-		for i := 0; i < read; i++ {
-			if buf[i] != '\n' {
-				line = append(line, buf[i])
-				continue
-			}
-
-			temp := strings.Split(string(line), lineSeparator)
-			stationName := temp[0]
-			temperature, _ := strconv.ParseFloat(temp[1], 64)
-
+	// collect and reduce data
+	log.Println("zbieranie wynikow")
+	resultMap := make(map[string]stationMapData)
+	for result := range resultCh {
+		for stationName, data := range result {
 			stationData := resultMap[stationName]
 			resultMap[stationName] = stationMapData{
-				min: min(temperature, stationData.min),
-				max: max(temperature, stationData.max),
-				sum: stationData.sum + temperature,
-				cnt: stationData.cnt + 1,
+				min: min(data.min, stationData.min),
+				max: max(data.max, stationData.max),
+				sum: data.sum + stationData.sum,
+				cnt: data.cnt + stationData.cnt,
 			}
-			line = line[:0]
 		}
 	}
 
+	// print result
+	log.Println("konwertowanie do listy")
 	stationsData := convertToArray(resultMap)
 	slices.SortFunc(stationsData, func(a, b stationSliceData) int {
 		if a.name < b.name {
@@ -91,29 +78,9 @@ func main() {
 		return 1
 	})
 
+	log.Println("wypisywanie wyniku")
 	output := generateOutput(stationsData)
 	fmt.Println(output)
-}
-
-func initResultMap(stationsFile string, stationsNumber int, minimumTemperature, maximumTemperature float64) map[string]stationMapData {
-	out := make(map[string]stationMapData, stationsNumber)
-
-	f, err := os.Open(stationsFile)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	scn := bufio.NewScanner(f)
-	for scn.Scan() {
-		station := scn.Text()
-
-		out[station] = stationMapData{
-			min: maximumTemperature,
-			max: minimumTemperature,
-		}
-	}
-
-	return out
 }
 
 func generateOutput(stationsData []stationSliceData) string {
