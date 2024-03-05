@@ -27,3 +27,8 @@
 ```bash
 ./1brc-go  159,93s user 2,96s system 95% cpu 2:50,85 total
 ```
+
+- 5-parallel-map-reduce
+```bash
+./1brc-go  210,88s user 7,24s system 879% cpu 24,794 total
+```
