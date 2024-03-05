@@ -33,7 +33,6 @@ type (
 
 func main() {
 	cpuCores := runtime.NumCPU()
-	log.Printf("cpuCores: %v\n", cpuCores)
 
 	f, err := os.Open(dataFile)
 	if err != nil {
@@ -44,7 +43,6 @@ func main() {
 	dataCh := readerThread(f)
 	resultCh := make(chan map[string]stationMapData, cpuCores)
 
-	log.Println("tworzenie worker threadow")
 	var wg sync.WaitGroup
 	for i := 0; i < cpuCores; i++ {
 		wg.Add(1)
@@ -54,7 +52,6 @@ func main() {
 	close(resultCh)
 
 	// collect and reduce data
-	log.Println("zbieranie wynikow")
 	resultMap := make(map[string]stationMapData)
 	for result := range resultCh {
 		for stationName, data := range result {
@@ -69,7 +66,6 @@ func main() {
 	}
 
 	// print result
-	log.Println("konwertowanie do listy")
 	stationsData := convertToArray(resultMap)
 	slices.SortFunc(stationsData, func(a, b stationSliceData) int {
 		if a.name < b.name {
@@ -78,7 +74,6 @@ func main() {
 		return 1
 	})
 
-	log.Println("wypisywanie wyniku")
 	output := generateOutput(stationsData)
 	fmt.Println(output)
 }
