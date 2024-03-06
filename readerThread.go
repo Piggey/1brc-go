@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	chunksize = 32 * 1024 * 1024
+	chunksize = 4 * 1024 * 1024
 )
 
 func readerThread(f *os.File, cores int) <-chan []byte {

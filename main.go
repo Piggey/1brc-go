@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"slices"
+	"runtime/pprof"
 	"strings"
 	"sync"
 )
@@ -15,21 +15,12 @@ const (
 	dataFile        = "measurements.txt"
 )
 
-type (
-	stationMapData struct {
-		min float64
-		max float64
-		sum float64
-		cnt int
-	}
-
-	stationSliceData struct {
-		name string
-		min  float64
-		max  float64
-		mean float64
-	}
-)
+type stationData struct {
+	min int
+	max int
+	sum int
+	cnt int
+}
 
 func main() {
 	cpuCores := runtime.NumCPU()
@@ -40,74 +31,58 @@ func main() {
 	}
 	defer f.Close()
 
-	resultMap := initResultMap(stationsFile, uniqueStationsNum, minimumTemperature, maximumTemperature)
+	profFile, _ := os.Create("readerThread.pprof")
+	defer profFile.Close()
+
+	pprof.StartCPUProfile(profFile)
+	defer pprof.StopCPUProfile()
 
 	dataCh := readerThread(f, cpuCores)
-	resultCh := make(chan map[string]stationMapData, cpuCores)
+	resultCh := make(chan map[string]stationData, cpuCores)
 
 	var wg sync.WaitGroup
 	for i := 0; i < cpuCores; i++ {
-		resultMapCopy := make(map[string]stationMapData)
-		for stationName, data := range resultMap {
-			resultMapCopy[stationName] = data
-		}
-
 		wg.Add(1)
 		go func() {
-			workerThread(dataCh, resultMapCopy, resultCh, &wg)
+			workerThread(dataCh, resultCh, &wg)
 		}()
 	}
 	wg.Wait()
 	close(resultCh)
 
 	// collect and reduce data
+	resultMap := initResultMap(minimumTemperature, maximumTemperature)
+
 	for result := range resultCh {
 		for stationName, data := range result {
-			stationData := resultMap[stationName]
-			resultMap[stationName] = stationMapData{
-				min: min(data.min, stationData.min),
-				max: max(data.max, stationData.max),
-				sum: data.sum + stationData.sum,
-				cnt: data.cnt + stationData.cnt,
+			currentData := resultMap[stationName]
+			resultMap[stationName] = stationData{
+				min: min(data.min, currentData.min),
+				max: max(data.max, currentData.max),
+				sum: data.sum + currentData.sum,
+				cnt: data.cnt + currentData.cnt,
 			}
 		}
 	}
 
 	// print result
-	stationsData := convertToArray(resultMap)
-	slices.SortFunc(stationsData, func(a, b stationSliceData) int {
-		if a.name < b.name {
-			return -1
-		}
-		return 1
-	})
-
-	output := generateOutput(stationsData)
+	output := generateOutput(resultMap)
 	fmt.Println(output)
 }
 
-func generateOutput(stationsData []stationSliceData) string {
+func generateOutput(resultMap map[string]stationData) string {
 	output := "{"
-	for _, s := range stationsData {
-		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", s.name, s.min, s.mean, s.max)
+
+	for _, stationName := range stationsSorted {
+		data := resultMap[stationName]
+		minim := float64(data.min) / 10
+		maxim := float64(data.max) / 10
+		mean := float64(data.sum) / 10 / float64(data.cnt)
+
+		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", stationName, minim, mean, maxim)
 	}
 
 	output, _ = strings.CutSuffix(output, ", ")
 	output += "}"
 	return output
-}
-
-func convertToArray(m map[string]stationMapData) []stationSliceData {
-	out := make([]stationSliceData, 0, len(m))
-
-	for stationName, data := range m {
-		out = append(out, stationSliceData{
-			name: stationName,
-			min:  data.min,
-			mean: data.sum / float64(data.cnt),
-			max:  data.max,
-		})
-	}
-
-	return out
 }

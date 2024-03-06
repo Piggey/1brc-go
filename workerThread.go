@@ -6,14 +6,15 @@ import (
 
 const (
 	stationsFile       = "stations.txt"
-	minimumTemperature = -100
-	maximumTemperature = 100
-	uniqueStationsNum  = 413
+	minimumTemperature = -1000
+	maximumTemperature = 1000
 	lineSeparator      = ';'
 )
 
-func workerThread(dataCh <-chan []byte, resultMap map[string]stationMapData, resultCh chan<- map[string]stationMapData, wg *sync.WaitGroup) {
+func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData, wg *sync.WaitGroup) {
 	defer wg.Done()
+
+	resultMap := initResultMap(minimumTemperature, maximumTemperature)
 
 	for data := range dataCh {
 		linestart := 0
@@ -24,14 +25,14 @@ func workerThread(dataCh <-chan []byte, resultMap map[string]stationMapData, res
 
 			stationName, temperatureStr := splitLine(string(data[linestart:i]), lineSeparator)
 			linestart = i + 1
-			temperature := fastParseFloat(temperatureStr)
+			temperature := parseFloatAsInt(temperatureStr)
 
-			stationData := resultMap[stationName]
-			resultMap[stationName] = stationMapData{
-				min: min(temperature, stationData.min),
-				max: max(temperature, stationData.max),
-				sum: stationData.sum + temperature,
-				cnt: stationData.cnt + 1,
+			data := resultMap[stationName]
+			resultMap[stationName] = stationData{
+				min: min(temperature, data.min),
+				max: max(temperature, data.max),
+				sum: data.sum + temperature,
+				cnt: data.cnt + 1,
 			}
 		}
 	}

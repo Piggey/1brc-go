@@ -1,85 +1,51 @@
 package main
 
-import (
-	"bufio"
-	"log"
-	"os"
-)
-
 func splitLine(line string, separator byte) (stationName, temperatureStr string) {
-	for i := 0; i < len(line); i++ {
-		if line[i] == separator {
-			return line[:i], line[i+1:]
-		}
+	// heurystyka zamiast iterowania
+	// ;00.0  -> len - 5
+	// ;-0.0  -> len - 5
+	// ;0.0   -> len - 4
+	// ;-00.0 -> len - 6
+
+	l := len(line)
+	switch {
+	case line[l-5] == separator:
+		return line[:l-5], line[l-4:]
+
+	case line[l-4] == separator:
+		return line[:l-4], line[l-3:]
+
+	case line[l-6] == separator:
+		return line[:l-6], line[l-5:]
 	}
-	return "very", "wrong"
+
+	panic(line)
 }
 
-func initResultMap(stationsFile string, stationsNumber int, minimumTemperature, maximumTemperature float64) map[string]stationMapData {
-	out := make(map[string]stationMapData, stationsNumber)
+func initResultMap(minTemp, maxTemp int) (resultMap map[string]stationData) {
+	resultMap = make(map[string]stationData, len(stationsSorted))
 
-	f, err := os.Open(stationsFile)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	scn := bufio.NewScanner(f)
-	for scn.Scan() {
-		station := scn.Text()
-
-		out[station] = stationMapData{
-			min: maximumTemperature,
-			max: minimumTemperature,
-		}
-	}
-
-	return out
-}
-
-func fastParseFloat(s string) float64 {
-	mantissa, exp, neg := fastReadFloat(s)
-	return atof64(mantissa, exp, neg)
-}
-
-func atof64(mantissa uint64, exp int, neg bool) float64 {
-	f := float64(mantissa)
-	if neg {
-		f = -f
-	}
-
-	return f / float64pow10[-exp]
-}
-
-func fastReadFloat(s string) (mantissa uint64, exp int, neg bool) {
-	i := 0
-	if s[i] == '-' {
-		neg = true
-		i += 1
-	}
-
-	base := uint64(10)
-	var nd, dp, ndMant int
-	for ; i < len(s); i++ {
-		switch c := s[i]; {
-		case c == '.':
-			dp = nd
-			continue
-
-		case c >= '0' && c <= '9':
-			nd += 1
-			mantissa *= base
-			mantissa += uint64(c - '0')
-			ndMant += 1
-			continue
+	for _, stationName := range stationsSorted {
+		resultMap[stationName] = stationData{
+			min: maxTemp,
+			max: minTemp,
 		}
 	}
 
-	exp = dp - ndMant
-	return mantissa, exp, neg
+	return resultMap
 }
 
-var float64pow10 = []float64{
-	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
-	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
-	1e20, 1e21, 1e22,
+func parseFloatAsInt(s string) (num int) {
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			num *= 10
+			num += int(c - '0')
+		}
+	}
+
+	if s[0] != '-' {
+		return num
+	}
+
+	return -num
 }
