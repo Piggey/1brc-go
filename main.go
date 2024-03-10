@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime/pprof"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -22,14 +22,8 @@ type stationData struct {
 }
 
 func main() {
-	profFile, _ := os.Create("prof.pprof")
-	defer profFile.Close()
-
-	pprof.StartCPUProfile(profFile)
-	defer pprof.StopCPUProfile()
-
-	// cpuCores := runtime.NumCPU()
-	cpuCores := 1
+	cpuCores := runtime.NumCPU()
+	fmt.Printf("cpuCores: %v\n", cpuCores)
 
 	f, err := os.Open(dataFile)
 	if err != nil {
