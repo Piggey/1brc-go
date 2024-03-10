@@ -1,6 +1,6 @@
 package main
 
-func splitLine(line string, separator byte) (stationName, temperatureStr string) {
+func splitIndex(line []byte, separator byte) (index int) {
 	// heurystyka zamiast iterowania
 	// ;00.0  -> len - 5
 	// ;-0.0  -> len - 5
@@ -10,16 +10,16 @@ func splitLine(line string, separator byte) (stationName, temperatureStr string)
 	l := len(line)
 	switch {
 	case line[l-5] == separator:
-		return line[:l-5], line[l-4:]
+		index = l - 5
 
 	case line[l-4] == separator:
-		return line[:l-4], line[l-3:]
+		index = l - 4
 
 	case line[l-6] == separator:
-		return line[:l-6], line[l-5:]
+		index = l - 6
 	}
 
-	panic(line)
+	return index
 }
 
 func initResultMap(minTemp, maxTemp int) (resultMap map[string]stationData) {
@@ -35,7 +35,7 @@ func initResultMap(minTemp, maxTemp int) (resultMap map[string]stationData) {
 	return resultMap
 }
 
-func parseFloatAsInt(s string) (num int) {
+func parseFloatAsInt(s []byte) (num int) {
 	for _, c := range s {
 		if c >= '0' && c <= '9' {
 			num *= 10

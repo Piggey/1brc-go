@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -23,19 +22,20 @@ type stationData struct {
 }
 
 func main() {
-	cpuCores := runtime.NumCPU()
+	profFile, _ := os.Create("prof.pprof")
+	defer profFile.Close()
+
+	pprof.StartCPUProfile(profFile)
+	defer pprof.StopCPUProfile()
+
+	// cpuCores := runtime.NumCPU()
+	cpuCores := 1
 
 	f, err := os.Open(dataFile)
 	if err != nil {
 		log.Panic(err)
 	}
 	defer f.Close()
-
-	profFile, _ := os.Create("readerThread.pprof")
-	defer profFile.Close()
-
-	pprof.StartCPUProfile(profFile)
-	defer pprof.StopCPUProfile()
 
 	dataCh := readerThread(f, cpuCores)
 	resultCh := make(chan map[string]stationData, cpuCores)
