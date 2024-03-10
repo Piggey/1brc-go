@@ -23,12 +23,15 @@ func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData, 
 				continue
 			}
 
-			stationName, temperatureStr := splitLine(string(data[linestart:i]), lineSeparator)
+			line := data[linestart:i]
+			splitIdx := splitIndex(line, lineSeparator)
 			linestart = i + 1
-			temperature := parseFloatAsInt(temperatureStr)
 
-			data := resultMap[stationName]
-			resultMap[stationName] = stationData{
+			stationName := line[:splitIdx]
+			temperature := parseFloatAsInt(line[splitIdx+1:])
+
+			data := resultMap[string(stationName)]
+			resultMap[string(stationName)] = stationData{
 				min: min(temperature, data.min),
 				max: max(temperature, data.max),
 				sum: data.sum + temperature,
