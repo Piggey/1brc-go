@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	exampleDataFile = "example.txt"
-	dataFile        = "measurements.txt"
+	exampleDataFile = "data/example.txt"
+	dataFile        = "data/measurements.txt"
 )
 
 type stationData struct {
