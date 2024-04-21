@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	dataFile = "data/example.txt"
-	// dataFile = "data/measurements.txt"
+	// dataFile = "data/example.txt"
+	dataFile = "data/measurements.txt"
 )
 
 func main() {
