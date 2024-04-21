@@ -37,3 +37,8 @@
 ```bash
 ./1brc-go  96,24s user 5,51s system 504% cpu 20,178 total
 ```
+
+- 8-memory-mapped-file
+```bash
+./1brc-go  133,24s user 10,18s system 962% cpu 14,896 total
+```
