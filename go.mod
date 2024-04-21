@@ -1,3 +1,3 @@
 module github.com/Piggey/1brc-go
 
-go 1.21.3
+go 1.22.0
