@@ -37,7 +37,7 @@ func main() {
 		log.Panic(err)
 	}
 
-	chunkChan := readerThread(fdata, fsize, cpuCores)
+	chunkChan := createChunks(fdata, fsize, cpuCores)
 	resultChan := make(chan map[string]stationData, cpuCores)
 
 	go func() {
