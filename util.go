@@ -22,19 +22,6 @@ func splitIndex(line []byte, separator byte) (index int) {
 	return index
 }
 
-func initResultMap(minTemp, maxTemp int) (resultMap map[string]stationData) {
-	resultMap = make(map[string]stationData, len(stationsSorted))
-
-	for _, stationName := range stationsSorted {
-		resultMap[stationName] = stationData{
-			min: maxTemp,
-			max: minTemp,
-		}
-	}
-
-	return resultMap
-}
-
 func parseFloatAsInt(s []byte) (num int) {
 	for _, c := range s {
 		if c >= '0' && c <= '9' {
