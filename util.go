@@ -1,6 +1,6 @@
 package main
 
-func splitIndex(line []byte, separator byte) (index int) {
+func findSplitIndex(line []byte, separator byte) (index int) {
 	// heurystyka zamiast iterowania
 	// ;00.0  -> len - 5
 	// ;-0.0  -> len - 5

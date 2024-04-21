@@ -2,22 +2,24 @@ package main
 
 const lineSeparator = ';'
 
-func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData) {
+func workerThread(fdata []byte, chunkChan <-chan chunk, resultChan chan<- map[string]stationData) {
 	resultMap := map[string]stationData{}
 
-	for data := range dataCh {
+	for chunk := range chunkChan {
+		chunkData := fdata[chunk.start:chunk.end]
+
 		linestart := 0
-		for i := 0; i < len(data); i++ {
-			if data[i] != '\n' {
+		for i := 0; i < len(chunkData); i++ {
+			if chunkData[i] != '\n' {
 				continue
 			}
 
-			line := data[linestart:i]
-			splitIdx := splitIndex(line, lineSeparator)
+			line := chunkData[linestart:i]
+			splitIndex := findSplitIndex(line, lineSeparator)
 			linestart = i + 1
 
-			stationName := string(line[:splitIdx])
-			temperature := parseFloatAsInt(line[splitIdx+1:])
+			stationName := string(line[:splitIndex])
+			temperature := parseFloatAsInt(line[splitIndex+1:])
 
 			station, found := resultMap[stationName]
 			if !found {
@@ -34,5 +36,5 @@ func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData) 
 		}
 	}
 
-	resultCh <- resultMap
+	resultChan <- resultMap
 }
