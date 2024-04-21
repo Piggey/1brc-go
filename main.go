@@ -10,16 +10,9 @@ import (
 )
 
 const (
-	exampleDataFile = "data/example.txt"
-	dataFile        = "data/measurements.txt"
+	dataFile = "data/example.txt"
+	// dataFile = "data/measurements.txt"
 )
-
-type stationData struct {
-	min int
-	max int
-	sum int
-	cnt int
-}
 
 func main() {
 	cpuCores := runtime.NumCPU()
@@ -31,31 +24,38 @@ func main() {
 	}
 	defer f.Close()
 
-	dataCh := readerThread(f, cpuCores)
-	resultCh := make(chan map[string]stationData, cpuCores)
+	dataChan := readerThread(f, cpuCores)
+	resultChan := make(chan map[string]stationData, cpuCores)
 
-	var wg sync.WaitGroup
-	for i := 0; i < cpuCores; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			workerThread(dataCh, resultCh)
-		}()
-	}
-	wg.Wait()
-	close(resultCh)
+	go func() {
+		var wg sync.WaitGroup
+		for i := 0; i < cpuCores; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				workerThread(dataChan, resultChan)
+			}()
+		}
+		wg.Wait()
+		close(resultChan)
+	}()
 
 	// collect and reduce data
-	resultMap := initResultMap(minimumTemperature, maximumTemperature)
+	resultMap := map[string]stationData{}
 
-	for result := range resultCh {
-		for stationName, data := range result {
-			currentData := resultMap[stationName]
+	for result := range resultChan {
+		for stationName, station := range result {
+			resStation, found := resultMap[stationName]
+			if !found {
+				resultMap[stationName] = station
+				continue
+			}
+
 			resultMap[stationName] = stationData{
-				min: min(data.min, currentData.min),
-				max: max(data.max, currentData.max),
-				sum: data.sum + currentData.sum,
-				cnt: data.cnt + currentData.cnt,
+				min: min(station.min, resStation.min),
+				max: max(station.max, resStation.max),
+				sum: station.sum + resStation.sum,
+				cnt: station.cnt + resStation.cnt,
 			}
 		}
 	}
@@ -68,13 +68,12 @@ func main() {
 func generateOutput(resultMap map[string]stationData) string {
 	output := "{"
 
-	for _, stationName := range stationsSorted {
-		data := resultMap[stationName]
-		minim := float64(data.min) / 10
-		maxim := float64(data.max) / 10
-		mean := float64(data.sum) / 10 / float64(data.cnt)
+	for stationName, station := range resultMap {
+		mini := float64(station.min) / 10
+		maxi := float64(station.max) / 10
+		mean := float64(station.sum) / float64(station.cnt*10)
 
-		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", stationName, minim, mean, maxim)
+		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", stationName, mini, mean, maxi)
 	}
 
 	output, _ = strings.CutSuffix(output, ", ")
