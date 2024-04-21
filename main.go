@@ -5,13 +5,14 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 )
 
 const (
-	dataFile = "data/example.txt"
-	// dataFile = "data/measurements.txt"
+	// dataFile = "data/example.txt"
+	dataFile = "data/measurements.txt"
 )
 
 func main() {
@@ -41,6 +42,14 @@ func main() {
 	}()
 
 	// collect and reduce data
+	resultMap := reduce(resultChan)
+
+	// print result
+	output := generateOutput(resultMap)
+	fmt.Println(output)
+}
+
+func reduce(resultChan <-chan map[string]stationData) map[string]stationData {
 	resultMap := map[string]stationData{}
 
 	for result := range resultChan {
@@ -60,15 +69,22 @@ func main() {
 		}
 	}
 
-	// print result
-	output := generateOutput(resultMap)
-	fmt.Println(output)
+	return resultMap
 }
 
 func generateOutput(resultMap map[string]stationData) string {
+	// sort station stationNames
+	stationNames := make([]string, 0, len(resultMap))
+	for stationName := range resultMap {
+		stationNames = append(stationNames, stationName)
+	}
+	slices.Sort(stationNames)
+
 	output := "{"
 
-	for stationName, station := range resultMap {
+	for _, stationName := range stationNames {
+		station := resultMap[stationName]
+
 		mini := float64(station.min) / 10
 		maxi := float64(station.max) / 10
 		mean := float64(station.sum) / float64(station.cnt*10)
