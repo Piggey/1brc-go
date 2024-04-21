@@ -9,8 +9,8 @@ const (
 	chunksize = 4 * 1024 * 1024
 )
 
-func readerThread(f *os.File, cores int) <-chan []byte {
-	ch := make(chan []byte, cores)
+func readerThread(f *os.File, numCores int) <-chan []byte {
+	ch := make(chan []byte, numCores)
 
 	go func() {
 		defer close(ch)
@@ -20,7 +20,7 @@ func readerThread(f *os.File, cores int) <-chan []byte {
 		buf := make([]byte, chunksize)
 		for {
 			read, err = f.Read(buf[offset:])
-			if read == 0 && err == io.EOF {
+			if err == io.EOF {
 				break
 			}
 
@@ -28,9 +28,9 @@ func readerThread(f *os.File, cores int) <-chan []byte {
 			lastNewlineIdx = lastIndexByte(buf, '\n', datalen)
 
 			// references bad!!
-			bufCopy := make([]byte, len(buf))
+			bufCopy := make([]byte, lastNewlineIdx + 1)
 			copy(bufCopy, buf)
-			ch <- bufCopy[:lastNewlineIdx+1]
+			ch <- bufCopy
 
 			// move bytes that werent sent to front
 			offset = datalen - lastNewlineIdx - 1
