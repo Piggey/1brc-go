@@ -1,9 +1,5 @@
 package main
 
-import (
-	"sync"
-)
-
 const (
 	stationsFile       = "stations.txt"
 	minimumTemperature = -1000
@@ -11,9 +7,7 @@ const (
 	lineSeparator      = ';'
 )
 
-func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData) {
 	resultMap := initResultMap(minimumTemperature, maximumTemperature)
 
 	for data := range dataCh {

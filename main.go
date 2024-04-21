@@ -38,7 +38,8 @@ func main() {
 	for i := 0; i < cpuCores; i++ {
 		wg.Add(1)
 		go func() {
-			workerThread(dataCh, resultCh, &wg)
+			defer wg.Done()
+			workerThread(dataCh, resultCh)
 		}()
 	}
 	wg.Wait()
