@@ -8,11 +8,12 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 const (
-	// dataFile = "data/example.txt"
-	dataFile = "data/measurements.txt"
+	dataFile = "data/example.txt"
+	// dataFile = "data/measurements.txt"
 )
 
 func main() {
@@ -25,7 +26,18 @@ func main() {
 	}
 	defer f.Close()
 
-	dataChan := readerThread(f, cpuCores)
+	fstat, err := f.Stat()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	fsize := int(fstat.Size())
+	fdata, err := syscall.Mmap(int(f.Fd()), 0, fsize, syscall.PROT_READ, syscall.MAP_SHARED)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	chunkChan := readerThread(fdata, fsize, cpuCores)
 	resultChan := make(chan map[string]stationData, cpuCores)
 
 	go func() {
@@ -34,7 +46,7 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				workerThread(dataChan, resultChan)
+				workerThread(fdata, chunkChan, resultChan)
 			}()
 		}
 		wg.Wait()
@@ -42,14 +54,14 @@ func main() {
 	}()
 
 	// collect and reduce data
-	resultMap := reduce(resultChan)
+	resultMap := reduceResults(resultChan)
 
 	// print result
 	output := generateOutput(resultMap)
 	fmt.Println(output)
 }
 
-func reduce(resultChan <-chan map[string]stationData) map[string]stationData {
+func reduceResults(resultChan <-chan map[string]stationData) map[string]stationData {
 	resultMap := map[string]stationData{}
 
 	for result := range resultChan {
