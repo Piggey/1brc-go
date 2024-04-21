@@ -5,9 +5,7 @@ import (
 	"os"
 )
 
-const (
-	chunksize = 4 * 1024 * 1024
-)
+const chunksize = 4 * 1024 * 1024
 
 func readerThread(f *os.File, numCores int) <-chan []byte {
 	ch := make(chan []byte, numCores)
@@ -28,7 +26,7 @@ func readerThread(f *os.File, numCores int) <-chan []byte {
 			lastNewlineIdx = lastIndexByte(buf, '\n', datalen)
 
 			// references bad!!
-			bufCopy := make([]byte, lastNewlineIdx + 1)
+			bufCopy := make([]byte, lastNewlineIdx+1)
 			copy(bufCopy, buf)
 			ch <- bufCopy
 

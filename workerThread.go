@@ -1,14 +1,9 @@
 package main
 
-const (
-	stationsFile       = "stations.txt"
-	minimumTemperature = -1000
-	maximumTemperature = 1000
-	lineSeparator      = ';'
-)
+const lineSeparator = ';'
 
 func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData) {
-	resultMap := initResultMap(minimumTemperature, maximumTemperature)
+	resultMap := map[string]stationData{}
 
 	for data := range dataCh {
 		linestart := 0
@@ -21,15 +16,20 @@ func workerThread(dataCh <-chan []byte, resultCh chan<- map[string]stationData) 
 			splitIdx := splitIndex(line, lineSeparator)
 			linestart = i + 1
 
-			stationName := line[:splitIdx]
+			stationName := string(line[:splitIdx])
 			temperature := parseFloatAsInt(line[splitIdx+1:])
 
-			data := resultMap[string(stationName)]
-			resultMap[string(stationName)] = stationData{
-				min: min(temperature, data.min),
-				max: max(temperature, data.max),
-				sum: data.sum + temperature,
-				cnt: data.cnt + 1,
+			station, found := resultMap[stationName]
+			if !found {
+				resultMap[stationName] = NewStation(temperature)
+				continue
+			}
+
+			resultMap[stationName] = stationData{
+				min: min(temperature, station.min),
+				max: max(temperature, station.max),
+				sum: station.sum + temperature,
+				cnt: station.cnt + 1,
 			}
 		}
 	}
