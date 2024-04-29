@@ -1,17 +1,19 @@
 package main
 
 type stationData struct {
-	min int
-	max int
-	sum int
-	cnt int
+	name []byte
+	min  int
+	max  int
+	sum  int
+	cnt  int
 }
 
-func NewStation(temp int) stationData {
+func NewStation(name []byte, temp int) stationData {
 	return stationData{
-		min: temp,
-		max: temp,
-		sum: temp,
-		cnt: 1,
+		name: name,
+		min:  temp,
+		max:  temp,
+		sum:  temp,
+		cnt:  1,
 	}
 }

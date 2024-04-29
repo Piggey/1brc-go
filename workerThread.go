@@ -1,9 +1,11 @@
 package main
 
+import "github.com/zeebo/xxh3"
+
 const lineSeparator = ';'
 
-func workerThread(fdata []byte, chunkChan <-chan chunk, resultChan chan<- map[string]stationData) {
-	resultMap := map[string]stationData{}
+func workerThread(fdata []byte, chunkChan <-chan chunk, resultChan chan<- map[uint64]stationData) {
+	resultMap := map[uint64]stationData{}
 
 	for chunk := range chunkChan {
 		chunkData := fdata[chunk.start:chunk.end]
@@ -18,20 +20,22 @@ func workerThread(fdata []byte, chunkChan <-chan chunk, resultChan chan<- map[st
 			splitIndex := findSplitIndex(line, lineSeparator)
 			linestart = i + 1
 
-			stationName := string(line[:splitIndex])
+			stationNameBytes := line[:splitIndex]
+			stationHash := xxh3.Hash(line[:splitIndex])
 			temperature := parseFloatAsInt(line[splitIndex+1:])
 
-			station, found := resultMap[stationName]
+			station, found := resultMap[stationHash]
 			if !found {
-				resultMap[stationName] = NewStation(temperature)
+				resultMap[stationHash] = NewStation(stationNameBytes, temperature)
 				continue
 			}
 
-			resultMap[stationName] = stationData{
-				min: min(temperature, station.min),
-				max: max(temperature, station.max),
-				sum: station.sum + temperature,
-				cnt: station.cnt + 1,
+			resultMap[stationHash] = stationData{
+				name: stationNameBytes,
+				min:  min(temperature, station.min),
+				max:  max(temperature, station.max),
+				sum:  station.sum + temperature,
+				cnt:  station.cnt + 1,
 			}
 		}
 	}

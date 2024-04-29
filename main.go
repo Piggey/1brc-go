@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strings"
 	"sync"
@@ -17,6 +18,16 @@ const (
 )
 
 func main() {
+	pproffile, err := os.Create("cpu.pprof")
+	if err != nil {
+		log.Panic(err)
+	}
+	err = pprof.StartCPUProfile(pproffile)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer pprof.StopCPUProfile()
+
 	cpuCores := runtime.NumCPU()
 	fmt.Printf("cpuCores: %v\n", cpuCores)
 
@@ -38,7 +49,7 @@ func main() {
 	}
 
 	chunkChan := createChunks(fdata, fsize, cpuCores)
-	resultChan := make(chan map[string]stationData, cpuCores)
+	resultChan := make(chan map[uint64]stationData, cpuCores)
 
 	go func() {
 		var wg sync.WaitGroup
@@ -61,22 +72,23 @@ func main() {
 	fmt.Println(output)
 }
 
-func reduceResults(resultChan <-chan map[string]stationData) map[string]stationData {
-	resultMap := map[string]stationData{}
+func reduceResults(resultChan <-chan map[uint64]stationData) map[uint64]stationData {
+	resultMap := map[uint64]stationData{}
 
 	for result := range resultChan {
-		for stationName, station := range result {
-			resStation, found := resultMap[stationName]
+		for stationHash, station := range result {
+			resStation, found := resultMap[stationHash]
 			if !found {
-				resultMap[stationName] = station
+				resultMap[stationHash] = station
 				continue
 			}
 
-			resultMap[stationName] = stationData{
-				min: min(station.min, resStation.min),
-				max: max(station.max, resStation.max),
-				sum: station.sum + resStation.sum,
-				cnt: station.cnt + resStation.cnt,
+			resultMap[stationHash] = stationData{
+				name: resStation.name,
+				min:  min(station.min, resStation.min),
+				max:  max(station.max, resStation.max),
+				sum:  station.sum + resStation.sum,
+				cnt:  station.cnt + resStation.cnt,
 			}
 		}
 	}
@@ -84,24 +96,31 @@ func reduceResults(resultChan <-chan map[string]stationData) map[string]stationD
 	return resultMap
 }
 
-func generateOutput(resultMap map[string]stationData) string {
+func generateOutput(resultMap map[uint64]stationData) string {
 	// sort station stationNames
-	stationNames := make([]string, 0, len(resultMap))
-	for stationName := range resultMap {
-		stationNames = append(stationNames, stationName)
+	type hashName struct {
+		hash uint64
+		name []byte
 	}
-	slices.Sort(stationNames)
+
+	hashNames := make([]hashName, 0, len(resultMap))
+	for stationHash, station := range resultMap {
+		hashNames = append(hashNames, hashName{stationHash, station.name})
+	}
+	slices.SortFunc(hashNames, func(a, b hashName) int {
+		return slices.Compare(a.name, b.name)
+	})
 
 	output := "{"
 
-	for _, stationName := range stationNames {
-		station := resultMap[stationName]
+	for _, hn := range hashNames {
+		station := resultMap[hn.hash]
 
 		mini := float64(station.min) / 10
 		maxi := float64(station.max) / 10
 		mean := float64(station.sum) / float64(station.cnt*10)
 
-		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", stationName, mini, mean, maxi)
+		output += fmt.Sprintf("%s=%.1f/%.1f/%.1f, ", hn.name, mini, mean, maxi)
 	}
 
 	output, _ = strings.CutSuffix(output, ", ")
