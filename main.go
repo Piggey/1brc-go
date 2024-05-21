@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"runtime/pprof"
 	"slices"
 	"strings"
 	"sync"
@@ -18,16 +17,6 @@ const (
 )
 
 func main() {
-	pproffile, err := os.Create("cpu.pprof")
-	if err != nil {
-		log.Panic(err)
-	}
-	err = pprof.StartCPUProfile(pproffile)
-	if err != nil {
-		log.Panic(err)
-	}
-	defer pprof.StopCPUProfile()
-
 	cpuCores := runtime.NumCPU()
 	fmt.Printf("cpuCores: %v\n", cpuCores)
 
